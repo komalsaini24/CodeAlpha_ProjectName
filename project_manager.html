@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskFlow - Project Management Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .board-column {
+            min-height: 500px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .task-card {
+            background-color: white;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .comment-box {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #495057;
+        }
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold">Welcome to TaskFlow</h2>
+                <button onclick="closeAuthModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="authTabs" class="flex border-b mb-4">
+                <button id="loginTab" class="px-4 py-2 font-medium text-blue-600 border-b-2 border-blue-600">Login</button>
+                <button id="registerTab" class="px-4 py-2 font-medium text-gray-500">Register</button>
+            </div>
+            <div id="loginForm">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <button onclick="login()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Login</button>
+            </div>
+            <div id="registerForm" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="registerName">Name</label>
+                    <input type="text" id="registerName" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" class="w-full px-3 py-2 border rounded-lg">
+                </div>
+                <button onclick="register()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Register</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Modal -->
+    <div id="taskModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="taskModalTitle" class="text-xl font-bold">Task Details</h2>
+                <button onclick="closeTaskModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <input id="taskTitle" class="w-full px-3 py-2 border rounded-lg font-bold text-lg mb-2">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Description</label>
+                <textarea id="taskDescription" class="w-full px-3 py-2 border rounded-lg" rows="3"></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Status</label>
+                <select id="taskStatus" class="w-full px-3 py-2 border rounded-lg">
+                    <option value="todo">To Do</option>
+                    <option value="in-progress">In Progress</option>
+                    <option value="done">Done</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Assigned To</label>
+                <select id="taskAssignee" class="w-full px-3 py-2 border rounded-lg">
+                    <!-- Options will be populated by JavaScript -->
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Due Date</label>
+                <input type="date" id="taskDueDate" class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Priority</label>
+                <select id="taskPriority" class="w-full px-3 py-2 border rounded-lg">
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Comments</label>
+                <div id="taskComments" class="space-y-3 max-h-40 overflow-y-auto mb-2">
+                    <!-- Comments will be populated by JavaScript -->
+                </div>
+                <div class="flex items-center">
+                    <input id="newComment" type="text" class="flex-1 px-3 py-2 border rounded-l-lg" placeholder="Add a comment...">
+                    <button onclick="addComment()" class="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button onclick="saveTask()" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Save</button>
+                <button onclick="deleteTask()" class="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Modal -->
+    <div id="projectModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="projectModalTitle" class="text-xl font-bold">New Project</h2>
+                <button onclick="closeProjectModal()" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Project Name</label>
+                <input id="projectName" class="w-full px-3 py-2 border rounded-lg">
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Description</label>
+                <textarea id="projectDescription" class="w-full px-3 py-2 border rounded-lg" rows="3"></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="block text-gray-700 mb-2">Team Members</label>
+                <div id="teamMembersList" class="space-y-2 mb-2">
+                    <!-- Team members will be populated by JavaScript -->
+                </div>
+                <div class="flex">
+                    <select id="addMemberSelect" class="flex-1 px-3 py-2 border rounded-l-lg">
+                        <!-- Options will be populated by JavaScript -->
+                    </select>
+                    <button onclick="addTeamMember()" class="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button onclick="saveProject()" class="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Center -->
+    <div id="notificationCenter" class="fixed top-4 right-4 w-80 bg-white rounded-lg shadow-lg z-50 hidden">
+        <div class="flex justify-between items-center p-3 border-b">
+            <h3 class="font-bold">Notifications</h3>
+            <button onclick="toggleNotificationCenter()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="notificationList" class="max-h-96 overflow-y-auto">
+            <!-- Notifications will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Main App Layout -->
+    <div class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/2a180638-9003-4648-bbb1-d3cd7ef75e65.png" alt="TaskFlow logo - a blue and white abstract representation of workflow arrows" class="h-8 w-8">
+                    <h1 class="text-xl font-bold text-gray-800">TaskFlow</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="notificationButton" onclick="toggleNotificationCenter()" class="relative text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-bell"></i>
+                        <span id="notificationBadge" class="notification-badge hidden">0</span>
+                    </button>
+                    <div id="userMenu" class="hidden flex items-center space-x-2 cursor-pointer" onclick="toggleUserMenu()">
+                        <div class="avatar">U</div>
+                        <span id="userName" class="font-medium"></span>
+                        <i class="fas fa-chevron-down text-gray-500"></i>
+                    </div>
+                    <div id="userDropdown" class="hidden absolute right-4 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
+                        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
+                        <a href="#" onclick="logout()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+                    </div>
+                    <button id="loginButton" onclick="openAuthModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Login</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 container mx-auto px-4 py-6">
+            <div id="projectsView" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 id="currentProjectName" class="text-2xl font-bold text-gray-800"></h2>
+                    <div class="flex space-x-2">
+                        <button onclick="openNewTaskModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
+                            <i class="fas fa-plus mr-2"></i> New Task
+                        </button>
+                        <button onclick="openProjectSettings()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 flex items-center">
+                            <i class="fas fa-cog mr-2"></i> Settings
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="board-column">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg">To Do</h3>
+                            <span id="todoCount" class="bg-gray-200 text-gray-800 text-xs font-medium px-2 py-1 rounded-full">0</span>
+                        </div>
+                        <div id="todoTasks" class="space-y-3">
+                            <!-- Tasks will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="board-column">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg">In Progress</h3>
+                            <span id="inProgressCount" class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">0</span>
+                        </div>
+                        <div id="inProgressTasks" class="space-y-3">
+                            <!-- Tasks will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="board-column">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-bold text-lg">Done</h3>
+                            <span id="doneCount" class="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full">0</span>
+                        </div>
+                        <div id="doneTasks" class="space-y-3">
+                            <!-- Tasks will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dashboardView" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">My Projects</h2>
+                    <button onclick="openNewProjectModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
+                        <i class="fas fa-plus mr-2"></i> New Project
+                    </button>
+                </div>
+                <div id="projectsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Projects will be populated by JavaScript -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Data structure
+        let users = JSON.parse(localStorage.getItem('users')) || [];
+        let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
+        let projects = JSON.parse(localStorage.getItem('projects')) || [];
+        let currentProjectId = localStorage.getItem('currentProjectId') || null;
+        let notifications = JSON.parse(localStorage.getItem('notifications')) || [];
+
+        // DOM Elements
+        const authModal = document.getElementById('authModal');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const loginTab = document.getElementById('loginTab');
+        const registerTab = document.getElementById('registerTab');
+        const taskModal = document.getElementById('taskModal');
+        const projectModal = document.getElementById('projectModal');
+        const notificationCenter = document.getElementById('notificationCenter');
+        const notificationButton = document.getElementById('notificationButton');
+        const notificationBadge = document.getElementById('notificationBadge');
+        const notificationList = document.getElementById('notificationList');
+        const userMenu = document.getElementById('userMenu');
+        const userName = document.getElementById('userName');
+        const userDropdown = document.getElementById('userDropdown');
+        const loginButton = document.getElementById('loginButton');
+        const projectsView = document.getElementById('projectsView');
+        const dashboardView = document.getElementById('dashboardView');
+        const currentProjectName = document.getElementById('currentProjectName');
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuthState();
+            loadProjects();
+            loadNotifications();
+            simulateWebSocketConnection();
+        });
+
+        // Auth functions
+        function openAuthModal() {
+            authModal.classList.remove('hidden');
+        }
+
+        function closeAuthModal() {
+            authModal.classList.add('hidden');
+        }
+
+        function switchToRegister() {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            loginTab.classList.remove('border-blue-600', 'text-blue-600');
+            loginTab.classList.add('text-gray-500');
+            registerTab.classList.add('border-blue-600', 'text-blue-600');
+            registerTab.classList.remove('text-gray-500');
+        }
+
+        function switchToLogin() {
+            registerForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            registerTab.classList.remove('border-blue-600', 'text-blue-600');
+            registerTab.classList.add('text-gray-500');
+            loginTab.classList.add('border-blue-600', 'text-blue-600');
+            loginTab.classList.remove('text-gray-500');
+        }
+
+        function register() {
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+
+            if (!name || !email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            if (users.some(user => user.email === email)) {
+                alert('User with this email already exists');
+                return;
+            }
+
+            const newUser = {
+                id: generateId(),
+                name,
+                email,
+                password,
+                avatar: name.charAt(0).toUpperCase()
+            };
+
+            users.push(newUser);
+            localStorage.setItem('users', JSON.stringify(users));
+
+            currentUser = newUser;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+            closeAuthModal();
+            checkAuthState();
+            loadProjects();
+        }
+
+        function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const user = users.find(user => user.email === email && user.password === password);
+
+            if (!user) {
+                alert('Invalid email or password');
+                return;
+            }
+
+            currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+            closeAuthModal();
+            checkAuthState();
+            loadProjects();
+        }
+
+        function logout() {
+            currentUser = null;
+            currentProjectId = null;
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('currentProjectId');
+            checkAuthState();
+        }
+
+        function checkAuthState() {
+            if (currentUser) {
+                loginButton.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+                userName.textContent = currentUser.name;
+                document.querySelector('.avatar').textContent = currentUser.avatar;
+                dashboardView.classList.remove('hidden');
+                projectsView.classList.add('hidden');
+            } else {
+                loginButton.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+                dashboardView.classList.add('hidden');
+                projectsView.classList.add('hidden');
+                openAuthModal();
+            }
+        }
+
+        function toggleUserMenu() {
+            userDropdown.classList.toggle('hidden');
+        }
+
+        // Project functions
+        function openNewProjectModal() {
+            document.getElementById('projectModalTitle').textContent = 'New Project';
+            document.getElementById('projectName').value = '';
+            document.getElementById('projectDescription').value = '';
+            document.getElementById('teamMembersList').innerHTML = '';
+            
+            // Populate add member select
+            const addMemberSelect = document.getElementById('addMemberSelect');
+            addMemberSelect.innerHTML = '';
+            users.forEach(user => {
+                if (user.id !== currentUser.id) {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.name;
+                    addMemberSelect.appendChild(option);
+                }
+            });
+
+            projectModal.classList.remove('hidden');
+        }
+
+        function openProjectSettings() {
+            const project = projects.find(p => p.id === currentProjectId);
+            if (!project) return;
+
+            document.getElementById('projectModalTitle').textContent = 'Project Settings';
+            document.getElementById('projectName').value = project.name;
+            document.getElementById('projectDescription').value = project.description;
+            
+            // Populate team members
+            const teamMembersList = document.getElementById('teamMembersList');
+            teamMembersList.innerHTML = '';
+            project.teamMembers.forEach(memberId => {
+                const member = users.find(u => u.id === memberId);
+                if (member) {
+                    const memberDiv = document.createElement('div');
+                    memberDiv.className = 'flex justify-between items-center';
+                    memberDiv.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <div class="avatar">${member.avatar}</div>
+                            <span>${member.name}</span>
+                        </div>
+                        <button onclick="removeTeamMember('${memberId}')" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    teamMembersList.appendChild(memberDiv);
+                }
+            });
+
+            // Populate add member select
+            const addMemberSelect = document.getElementById('addMemberSelect');
+            addMemberSelect.innerHTML = '';
+            users.forEach(user => {
+                if (user.id !== currentUser.id && !project.teamMembers.includes(user.id)) {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.name;
+                    addMemberSelect.appendChild(option);
+                }
+            });
+
+            projectModal.classList.remove('hidden');
+        }
+
+        function closeProjectModal() {
+            projectModal.classList.add('hidden');
+        }
+
+        function addTeamMember() {
+            const memberId = document.getElementById('addMemberSelect').value;
+            if (!memberId) return;
+
+            const member = users.find(u => u.id === memberId);
+            if (!member) return;
+
+            const teamMembersList = document.getElementById('teamMembersList');
+            const memberDiv = document.createElement('div');
+            memberDiv.className = 'flex justify-between items-center';
+            memberDiv.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <div class="avatar">${member.avatar}</div>
+                    <span>${member.name}</span>
+                </div>
+                <button onclick="removeTeamMember('${memberId}')" class="text-red-500 hover:text-red-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            teamMembersList.appendChild(memberDiv);
+
+            // Remove from select
+            document.getElementById('addMemberSelect').querySelector(`option[value="${memberId}"]`).remove();
+        }
+
+        function removeTeamMember(memberId) {
+            const teamMembersList = document.getElementById('teamMembersList');
+            const memberDiv = teamMembersList.querySelector(`button[onclick="removeTeamMember('${memberId}')"]`).parentNode;
+            teamMembersList.removeChild(memberDiv);
+
+            // Add back to select if not current user
+            if (memberId !== currentUser.id) {
+                const member = users.find(u => u.id === memberId);
+                if (member) {
+                    const addMemberSelect = document.getElementById('addMemberSelect');
+                    const option = document.createElement('option');
+                    option.value = member.id;
+                    option.textContent = member.name;
+                    addMemberSelect.appendChild(option);
+                }
+            }
+        }
+
+        function saveProject() {
+            const name = document.getElementById('projectName').value;
+            const description = document.getElementById('projectDescription').value;
+            
+            if (!name) {
+                alert('Project name is required');
+                return;
+            }
+
+            // Get team members from the list
+            const teamMembers = [currentUser.id];
+            const teamMemberDivs = document.getElementById('teamMembersList').children;
+            for (let i = 0; i < teamMemberDivs.length; i++) {
+                const button = teamMemberDivs[i].querySelector('button');
+                if (button) {
+                    const memberId = button.getAttribute('onclick').match(/'([^']+)'/)[1];
+                    if (memberId !== currentUser.id) {
+                        teamMembers.push(memberId);
+                    }
+                }
+            }
+
+            if (document.getElementById('projectModalTitle').textContent === 'New Project') {
+                // Create new project
+                const newProject = {
+                    id: generateId(),
+                    name,
+                    description,
+                    teamMembers,
+                    tasks: [],
+                    createdAt: new Date().toISOString()
+                };
+                projects.push(newProject);
+            } else {
+                // Update existing project
+                const project = projects.find(p => p.id === currentProjectId);
+                if (project) {
+                    project.name = name;
+                    project.description = description;
+                    project.teamMembers = teamMembers;
+                }
+            }
+
+            localStorage.setItem('projects', JSON.stringify(projects));
+            closeProjectModal();
+            loadProjects();
+        }
+
+        function loadProjects() {
+            if (!currentUser) return;
+
+            const projectsGrid = document.getElementById('projectsGrid');
+            projectsGrid.innerHTML = '';
+
+            const userProjects = projects.filter(project => 
+                project.teamMembers.includes(currentUser.id)
+            );
+
+            if (userProjects.length === 0) {
+                projectsGrid.innerHTML = `
+                    <div class="col-span-3 text-center py-10">
+                        <img src="https://storage.googleapis.com/workspace-0f70711f-8b4e-4d94-86f1-2a93ccde5887/image/8eb41fcb-1a18-472b-a70e-576d54df9045.png" alt="No projects yet illustration - a blank canvas with a plus sign" class="mx-auto mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">No projects yet</h3>
+                        <p class="text-gray-500 mt-1">Create your first project to get started</p>
+                        <button onclick="openNewProjectModal()" class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                            Create Project
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            userProjects.forEach(project => {
+                const taskCount = project.tasks.length;
+                const completedCount = project.tasks.filter(task => task.status === 'done').length;
+                const progress = taskCount > 0 ? Math.round((completedCount / taskCount) * 100) : 0;
+
+                const projectCard = document.createElement('div');
+                projectCard.className = 'bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow';
+                projectCard.onclick = () => openProject(project.id);
+                projectCard.innerHTML = `
+                    <div class="p-5">
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">${project.name}</h3>
+                        <p class="text-gray-600 mb-4">${project.description || 'No description'}</p>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-500">${project.teamMembers.length} members</span>
+                            <span class="text-sm text-gray-500">${taskCount} tasks</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${progress}%"></div>
+                        </div>
+                    </div>
+                `;
+                projectsGrid.appendChild(projectCard);
+            });
+        }
+
+        function openProject(projectId) {
+            currentProjectId = projectId;
+            localStorage.setItem('currentProjectId', projectId);
+            
+            const project = projects.find(p => p.id === projectId);
+            if (!project) return;
+
+            currentProjectName.textContent = project.name;
+            dashboardView.classList.add('hidden');
+            projectsView.classList.remove('hidden');
+            loadProjectTasks();
+        }
+
+        function loadProjectTasks() {
+            const project = projects.find(p => p.id === currentProjectId);
+            if (!project) return;
+
+            const todoTasks = document.getElementById('todoTasks');
+            const inProgressTasks = document.getElementById('inProgressTasks');
+            const doneTasks = document.getElementById('doneTasks');
+
+            todoTasks.innerHTML = '';
+            inProgressTasks.innerHTML = '';
+            doneTasks.innerHTML = '';
+
+            let todoCount = 0;
+            let inProgressCount = 0;
+            let doneCount = 0;
+
+            project.tasks.forEach(task => {
+                const taskCard = createTaskCard(task);
+                if (task.status === 'todo') {
+                    todoTasks.appendChild(taskCard);
+                    todoCount++;
+                } else if (task.status === 'in-progress') {
+                    inProgressTasks.appendChild(taskCard);
+                    inProgressCount++;
+                } else if (task.status === 'done') {
+                    doneTasks.appendChild(taskCard);
+                    doneCount++;
+                }
+            });
+
+            document.getElementById('todoCount').textContent = todoCount;
+            document.getElementById('inProgressCount').textContent = inProgressCount;
+            document.getElementById('doneCount').textContent = doneCount;
+        }
+
+        function createTaskCard(task) {
+            const assignee = users.find(u => u.id === task.assignee);
+            const dueDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date';
+            const priorityClass = {
+                'low': 'bg-green-100 text-green-800',
+                'medium': 'bg-yellow-100 text-yellow-800',
+                'high': 'bg-red-100 text-red-800'
+            }[task.priority] || 'bg-gray-100 text-gray-800';
+
+            const taskCard = document.createElement('div');
+            taskCard.className = 'task-card';
+            taskCard.onclick = () => openTaskModal(task.id);
+            taskCard.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="font-medium">${task.title}</h4>
+                    <span class="text-xs px-2 py-1 rounded-full ${priorityClass}">${task.priority}</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-3 line-clamp-2">${task.description || 'No description'}</p>
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        ${assignee ? `<div class="avatar">${assignee.avatar}</div>` : ''}
+                        <span class="text-xs text-gray-500">${dueDate}</span>
+                    </div>
+                    <span class="text-xs text-gray-500">${task.comments.length} comments</span>
+                </div>
+            `;
+            return taskCard;
+        }
+
+        // Task functions
+        function openNewTaskModal() {
+            document.getElementById('taskModalTitle').textContent = 'New Task';
+            document.getElementById('taskTitle').value = '';
+            document.getElementById('taskDescription').value = '';
+            document.getElementById('taskStatus').value = 'todo';
+            document.getElementById('taskDueDate').value = '';
+            document.getElementById('taskPriority').value = 'medium';
+            document.getElementById('taskComments').innerHTML = '';
+            document.getElementById('newComment').value = '';
+
+            // Populate assignee select
+            const assigneeSelect = document.getElementById('taskAssignee');
+            assigneeSelect.innerHTML = '<option value="">Unassigned</option>';
+            
+            const project = projects.find(p => p.id === currentProjectId);
+            if (project) {
+                project.teamMembers.forEach(memberId => {
+                    const member = users.find(u => u.id === memberId);
+                    if (member) {
+                        const option = document.createElement('option');
+                        option.value = member.id;
+                        option.textContent = member.name;
+                        assigneeSelect.appendChild(option);
+                    }
+                });
+            }
+
+            taskModal.classList.remove('hidden');
+        }
+
+        function openTaskModal(taskId) {
+            const project = projects.find(p => p.id === currentProjectId);
+            if (!project) return;
+
+            const task = project.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            document.getElementById('taskModalTitle').textContent = 'Task Details';
+            document.getElementById('taskTitle').value = task.title;
+            document.getElementById('taskDescription').value = task.description || '';
+            document.getElementById('taskStatus').value = task.status;
+            document.getElementById('taskDueDate').value = task.dueDate || '';
+            document.getElementById('taskPriority').value = task.priority || 'medium';
+            document.getElementById('newComment').value = '';
+
+            // Populate assignee select
+            const assigneeSelect = document.getElementById('taskAssignee');
+            assigneeSelect.innerHTML = '<option value="">Unassigned</option>';
+            
+            project.teamMembers.forEach(memberId => {
+                const member = users.find(u => u.id === memberId);
+                if (member) {
+                    const option = document.createElement('option');
+                    option.value = member.id;
+                    option.textContent = member.name;
+                    option.selected = task.assignee === member.id;
+                    assigneeSelect.appendChild(option);
+                }
+            });
+
+            // Populate comments
+            const commentsContainer = document.getElementById('taskComments');
+            commentsContainer.innerHTML = '';
+            task.comments.forEach(comment => {
+                const commenter = users.find(u => u.id === comment.userId);
+                if (commenter) {
+                    const commentDiv = document.createElement('div');
+                    commentDiv.className = 'comment-box';
+                    commentDiv.innerHTML = `
+                        <div class="flex items-start space-x-2">
+                            <div class="avatar">${commenter.avatar}</div>
+                            <div class="flex-1">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-medium">${commenter.name}</span>
+                                    <span class="text-xs text-gray-500">${new Date(comment.timestamp).toLocaleString()}</span>
+                                </div>
+                                <p class="mt-1">${comment.text}</p>
+                            </div>
+                        </div>
+                    `;
+                    commentsContainer.appendChild(commentDiv);
+                }
+            });
+
+            taskModal.dataset.taskId = taskId;
+            taskModal.classList.remove('hidden');
+        }
+
+        function closeTaskModal() {
+            taskModal.classList.add('hidden');
+        }
+
+        function saveTask() {
+            const title = document.getElementById('taskTitle').value;
+            const description = document.getElementById('taskDescription').value;
+            const status = document.getElementById('taskStatus').value;
+            const assignee = document.getElementById('taskAssignee').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const priority = document.getElementById('taskPriority').value;
+
+            if (!title) {
+                alert('Task title is required');
+                return;
+            }
+
+            const project = projects.find(p => p.id === currentProjectId);
+            if (!project) return;
+
+            if (taskModal.dataset.taskId) {
+                // Update existing task
+                const task = project.tasks.find(t => t.id === taskModal.dataset.taskId);
+                if (task) {
+                    task.title = title;
+                    task.description = description;
+                    task.status = status;
+                    task.assignee = assignee || null;
+                    task.dueDate = dueDate || null;
+                    task.priority = priority;
+                    
+                    // Notify assignee if changed
+                    if (task.assignee && task.assignee !== currentUser.id) {
+                        addNotification(task.assignee, {
+                            type: 'task-update',
+                            message: `Task "${task.title}" was updated by ${currentUser.name}`,
+                            projectId: currentProjectId,
+                            taskId: task.id,
+                            timestamp: new Date().toISOString(),
+                            read: false
+                        });
+                    }
+                }
+            } else {
+                // Create new task
+                const newTask = {
+                    id: generateId(),
+                    title,
+                    description,
+                    status,
+                    assignee: assignee || null,
+                    dueDate: dueDate || null,
+                    priority,
+                    comments: [],
+                    createdAt: new Date().toISOString()
+                };
+                project.tasks.push(newTask);
+                
+                // Notify assignee if assigned
+                if (newTask.assignee && newTask.assignee !== currentUser.id) {
+                    addNotification(newTask.assignee, {
+                        type: 'task-assignment',
+                        message: `You were assigned to task "${newTask.title}" by ${currentUser.name}`,
+                        projectId: currentProjectId,
+                        taskId: newTask.id,
+                        timestamp: new Date().toISOString(),
+                        read: false
+                    });
+                }
+            }
+
+            localStorage.setItem('projects', JSON.stringify(projects));
+            closeTaskModal();
+            loadProjectTasks();
+        }
+
+        function deleteTask() {
+            if (!confirm('Are you sure you want to delete this task?')) return;
+
+            const project = projects.find(p => p.id === currentProjectId);
+            if (!project) return;
+
+            const taskId = taskModal.dataset.taskId;
+            if (!taskId) return;
+
+            project.tasks = project.tasks.filter(t => t.id !== taskId);
+            localStorage.setItem('projects', JSON.stringify(projects));
+            closeTaskModal();
+            loadProjectTasks();
+        }
+
+        function addComment() {
+            const commentText = document.getElementById('newComment').value;
+            if (!commentText) return;
+
+            const project = projects.find(p => p.id === currentProjectId);
+            if (!project) return;
+
+            const taskId = taskModal.dataset.taskId;
+            if (!taskId) return;
+
+            const task = project.tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            const newComment = {
+                id: generateId(),
+                userId: currentUser.id,
+                text: commentText,
+                timestamp: new Date().toISOString()
+            };
+            task.comments.push(newComment);
+
+            // Notify task assignee and other commenters (except current user)
+            const usersToNotify = new Set();
+            if (task.assignee && task.assignee !== currentUser.id) {
+                usersToNotify.add(task.assignee);
+            }
+            task.comments.forEach(comment => {
+                if (comment.userId !== currentUser.id) {
+                    usersToNotify.add(comment.userId);
+                }
+            });
+
+            usersToNotify.forEach(userId => {
+                addNotification(userId, {
+                    type: 'comment',
+                    message: `${currentUser.name} commented on task "${task.title}"`,
+                    projectId: currentProjectId,
+                    taskId: task.id,
+                    timestamp: new Date().toISOString(),
+                    read: false
+                });
+            });
+
+            localStorage.setItem('projects', JSON.stringify(projects));
+            openTaskModal(taskId); // Refresh the modal to show new comment
+        }
+
+        // Notification functions
+        function toggleNotificationCenter() {
+            notificationCenter.classList.toggle('hidden');
+            
+            // Mark notifications as read when opening
+            if (!notificationCenter.classList.contains('hidden')) {
+                const unreadNotifications = notifications.filter(n => n.userId === currentUser.id && !n.read);
+                if (unreadNotifications.length > 0) {
+                    unreadNotifications.forEach(n => n.read = true);
+                    localStorage.setItem('notifications', JSON.stringify(notifications));
+                    updateNotificationBadge();
+                }
+            }
+        }
+
+        function loadNotifications() {
+            if (!currentUser) return;
+
+            const userNotifications = notifications
+                .filter(n => n.userId === currentUser.id)
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            notificationList.innerHTML = '';
+
+            if (userNotifications.length === 0) {
+                notificationList.innerHTML = '<div class="p-4 text-center text-gray-500">No notifications</div>';
+                return;
+            }
+
+            userNotifications.forEach(notification => {
+                const notificationDiv = document.createElement('div');
+                notificationDiv.className = `p-3 border-b cursor-pointer hover:bg-gray-50 ${notification.read ? 'bg-white' : 'bg-blue-50'}`;
+                notificationDiv.onclick = () => handleNotificationClick(notification);
+                notificationDiv.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <p class="text-sm">${notification.message}</p>
+                        <span class="text-xs text-gray-500">${formatTimeAgo(notification.timestamp)}</span>
+                    </div>
+                `;
+                notificationList.appendChild(notificationDiv);
+            });
+
+            updateNotificationBadge();
+        }
+
+        function handleNotificationClick(notification) {
+            toggleNotificationCenter();
+            
+            if (notification.projectId) {
+                currentProjectId = notification.projectId;
+                localStorage.setItem('currentProjectId', currentProjectId);
+                
+                const project = projects.find(p => p.id === currentProjectId);
+                if (project) {
+                    currentProjectName.textContent = project.name;
+                    dashboardView.classList.add('hidden');
+                    projectsView.classList.remove('hidden');
+                    loadProjectTasks();
+                    
+                    if (notification.taskId) {
+                        setTimeout(() => {
+                            openTaskModal(notification.taskId);
+                        }, 100);
+                    }
+                }
+            }
+        }
+
+        function addNotification(userId, notification) {
+            notification.id = generateId();
+            notification.userId = userId;
+            notifications.push(notification);
+            localStorage.setItem('notifications', JSON.stringify(notifications));
+            
+            // Update UI if the current user is the recipient
+            if (currentUser && userId === currentUser.id) {
+                loadNotifications();
+                
+                // Show toast notification
+                showToast(notification.message);
+            }
+        }
+
+        function updateNotificationBadge() {
+            if (!currentUser) return;
+
+            const unreadCount = notifications.filter(n => n.userId === currentUser.id && !n.read).length;
+            
+            if (unreadCount > 0) {
+                notificationBadge.textContent = unreadCount;
+                notificationBadge.classList.remove('hidden');
+            } else {
+                notificationBadge.classList.add('hidden');
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-fade-in';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('animate-fade-out');
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        // Utility functions
+        function generateId() {
+            return Math.random().toString(36).substr(2, 9);
+        }
+
+        function formatTimeAgo(timestamp) {
+            const now = new Date();
+            const date = new Date(timestamp);
+            const seconds = Math.floor((now - date) / 1000);
+            
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+            return `${Math.floor(seconds / 86400)}d ago`;
+        }
+
+        // Simulate WebSocket connection for real-time updates
+       
